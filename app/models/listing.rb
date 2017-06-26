@@ -39,9 +39,12 @@ class Listing < ActiveRecord::Base
     self.get_ratings.inject(&:+).to_f / self.reviews.count
   end
 
-  def has_date_conflict(conflicts)
-    conflicts.find {|conflict| conflict.listing == self}
+  def has_date_conflict(start_date, end_date)
+    !self.find_date_conflicts(start_date, end_date).empty?
   end
 
+  def find_date_conflicts(start_date, end_date)
+    self.reservations.select {|reservation| reservation.falls_within_date_range(start_date, end_date)}
+  end
 
 end

@@ -5,14 +5,20 @@ class Reservation < ActiveRecord::Base
 
   validates :checkin, presence: true
   validates :checkout, presence: true
+  #validate :listing_available,
+  #validates :listing_available
 
   before_validation :guest_not_host
-  #validates :checkin, if: :listing_available
+  validate :listing_available
+  #validates :checkin, presence: true, if: :listing_available
 
   def listing_available
+    # TODO - this method should check against all listings, not itself!!
+    self.checkin.nil? || self.checkout.nil? || !self.listing.has_date_conflict(self.checkin, self.checkout)
+    binding.pry
+    # conflicts = self.listing.reservations.select {|reservation| reservation.falls_within_date_range(self.checkin, self.checkout)}
+    # conflicts.length == 0
     #binding.pry
-    conflicts = self.listing.reservations.select {|reservation| reservation.falls_within_date_range(self.checkin, self.checkout)}
-    conflicts.length == 0
   end
 
   def guest_not_host
