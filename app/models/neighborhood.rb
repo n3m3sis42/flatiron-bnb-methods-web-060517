@@ -7,7 +7,7 @@ class Neighborhood < ActiveRecord::Base
   end
 
   def neighborhood_openings(start_date, end_date)
-    self.listings.reject {|listing| listing.has_date_conflict(start_date, end_date)}
+    self.listings.reject {|listing| listing.has_date_conflict(Date.parse(start_date), Date.parse(end_date))}
   end
 
   def res_to_listings_ratio

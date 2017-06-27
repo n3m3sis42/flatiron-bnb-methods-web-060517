@@ -2,39 +2,126 @@ class Reservation < ActiveRecord::Base
   belongs_to :listing
   belongs_to :guest, :class_name => "User"
   has_one :review
+  validates :checkin, :checkout, presence: true
+  after_validation :guest_not_host, :listing_available, :checkin_before_checkout, on: [:create, :update]
 
-  validates :checkin, presence: true
-  validates :checkout, presence: true
-  #validate :listing_available,
-  #validates :listing_available
 
-  before_validation :guest_not_host
-  validate :listing_available
-  #validates :checkin, presence: true, if: :listing_available
 
   def listing_available
-    # TODO - this method should check against all listings, not itself!!
-    self.checkin.nil? || self.checkout.nil? || !self.listing.has_date_conflict(self.checkin, self.checkout)
-    binding.pry
-    # conflicts = self.listing.reservations.select {|reservation| reservation.falls_within_date_range(self.checkin, self.checkout)}
-    # conflicts.length == 0
-    #binding.pry
+    available_at_checkin?
+    available_at_checkout?
+  end
+
+  def available_at_checkin?
+    # puts "Checkin: #{self.checkin}, Checkout: #{self.checkout.class}"
+    if self.checkin == nil || self.checkout == nil
+      self.errors.add(:checkout, "Need checkout")
+    else
+      conflicts = self.listing.reservations.map do |reservation|
+        if (self.checkin >= reservation.checkin && self.checkin <= reservation.checkout)
+          reservation.listing
+        else
+          nil
+        end
+      end.compact
+      self.errors.add(:checkin, "Date conflicts") if conflicts.length>0
+    end
+  end
+
+  def available_at_checkout?
+    # puts "Checkin: #{self.checkin}, Checkout: #{self.checkout.class}"
+    if self.checkin == nil || self.checkout == nil
+      self.errors.add(:checkout, "Need checkout")
+    else
+      conflicts = self.listing.reservations.map do |reservation|
+        if (self.checkout >= reservation.checkin && self.checkout <= reservation.checkout)
+          reservation.listing
+        else
+          nil
+        end
+      end.compact
+      self.errors.add(:checkout, "Date conflicts") if conflicts.length>0
+    end
+  end
+
+  def checkin_before_checkout
+    if self.checkin != nil && self.checkout != nil
+      if self.checkin >= self.checkout
+        self.errors.add(:checkin, "Checkin needs to be before checkout")
+      end
+    else
+      self.errors.add(:checkin, "Checkin or checkout is nil")
+    end
   end
 
   def guest_not_host
-    self.guest.nil? || self.listing.host_id != self.guest.id
+    if self.guest_id == self.listing.host_id
+      self.errors.add(:guest_id, "You're not allowed to rent your own room.")
+    end
   end
 
   def checkin_within_date_range(start_date, end_date)
-    self.checkin.to_datetime >= start_date.to_datetime && self.checkin.to_datetime <= end_date.to_datetime
+    if self.checkin != nil
+      self.checkin >= start_date && self.checkin <= end_date
+    else
+      false
+    end
   end
 
   def checkout_within_date_range(start_date, end_date)
-    self.checkout.to_datetime >= start_date.to_datetime && self.checkout.to_datetime <= end_date.to_datetime
+    if self.checkout != nil
+      self.checkout >= start_date && self.checkout <= end_date
+    else
+      false
+    end
   end
 
   def falls_within_date_range(start_date, end_date)
     self.checkin_within_date_range(start_date, end_date) || self.checkout_within_date_range(start_date, end_date)
   end
+
+  def duration
+    (self.checkout - self.checkin)
+  end
+
+  def total_price
+    self.duration * self.listing.price
+  end
+
+  def no_checkin_conflicts(start_date, end_date)
+    if self.checkin == nil
+      return false
+      self.errors.add(:checkin, "Invalid checkin")
+    elsif self.checkin >= start_date && self.checkin<= end_date
+      return false
+    else
+      return true
+    end
+  end
+
+  def no_checkout_conflicts(start_date, end_date)
+    if self.checkout >= start_date && self.checkout <= end_date
+      return false
+    else
+      return true
+    end
+  end
+
+  def valid_checkin(start_date, end_date)
+    if self.checkin < start_date || self.checkin > end_date
+      return true
+    else
+      return false
+    end
+  end
+
+  def valid_checkout(start_date, end_date)
+    if self.checkout < start_date || self.checkout > end_date
+      return true
+    else
+      return false
+    end
+  end
+
 
 end

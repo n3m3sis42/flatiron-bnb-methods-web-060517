@@ -7,7 +7,17 @@ class City < ActiveRecord::Base
   end
 
   def city_openings(start_date, end_date)
-    self.listings.reject {|listing| listing.has_date_conflict(start_date, end_date)}
+    start_date = Date.parse(start_date)
+    end_date = Date.parse(end_date)
+    conflicts = self.reservations.map do |reservation|
+      if !reservation.valid_checkin(start_date, end_date) || !reservation.valid_checkout(start_date, end_date)
+        reservation.listing
+      else nil
+      end
+    end.compact
+    self.listings.select do |listing|
+      !conflicts.include?(listing)
+    end
   end
 
   def res_to_listings_ratio
