@@ -5,8 +5,6 @@ class Reservation < ActiveRecord::Base
   validates :checkin, :checkout, presence: true
   after_validation :guest_not_host, :listing_available, :checkin_before_checkout, on: [:create, :update]
 
-
-
   def listing_available
     available_at_checkin?
     available_at_checkout?
